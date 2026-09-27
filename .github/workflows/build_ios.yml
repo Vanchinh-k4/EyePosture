@@ -28,12 +28,11 @@ jobs:
     - name: Build iOS App (No Codesign)
       run: flutter build ios --release --no-codesign
 
-    - name: Pack IPA with Executable Permissions & Symlinks
+    - name: Create Payload and Zip to IPA
       run: |
         rm -rf Payload AppIot.ipa
         mkdir Payload
         cp -R build/ios/iphoneos/Runner.app Payload/
-        chmod +x Payload/Runner.app/Runner
         zip -r -y -9 AppIot.ipa Payload
 
     - name: Upload IPA File
