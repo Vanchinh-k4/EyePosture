@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "812307841842",
+    "firebase_url": "https://monitoringapp-7730e-default-rtdb.firebaseio.com",
+    "project_id": "monitoringapp-7730e",
+    "storage_bucket": "monitoringapp-7730e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:812307841842:android:90a07a048b2d0e2e574d2b",
+        "android_client_info": {
+          "package_name": "com.example.monitoring_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD1VetvHi36cORYoPtaw1WHlcJenft1qjQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
