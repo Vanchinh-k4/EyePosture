@@ -216,101 +216,136 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   /// Widget Chọn Thiết Bị
-  Widget _buildDeviceDropdown(Map<String, dynamic> userDevicesMap) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade300),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.important_devices, color: AppColors.primary),
-          const SizedBox(width: 12),
-          Expanded(
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                value: _selectedDeviceId,
-                isExpanded: true,
-                icon: const Icon(
-                  Icons.arrow_drop_down_circle_outlined,
-                  color: AppColors.primary,
+ Widget _buildDeviceDropdown(Map<String, dynamic> userDevicesMap) {
+  // Lấy danh sách danh sách Future tải tên cho tất cả thiết bị
+  final deviceEntries = userDevicesMap.entries.toList();
+
+  return FutureBuilder<List<DataSnapshot>>(
+    future: Future.wait(
+      deviceEntries.map((entry) {
+        return FirebaseDatabase.instance
+            .ref('devices/${entry.key}/info/device_name')
+            .get();
+      }),
+    ),
+    builder: (context, snapshot) {
+      // Map lưu cặp: key (devId) -> value (tên hiển thị)
+      final Map<String, String> deviceNames = {};
+
+      if (snapshot.hasData && snapshot.data != null) {
+        for (int i = 0; i < deviceEntries.length; i++) {
+          final devId = deviceEntries[i].key;
+          final rawValue = snapshot.data![i].value;
+
+          if (rawValue == null) {
+            deviceNames[devId] = devId;
+          } else if (rawValue is String) {
+            deviceNames[devId] = rawValue;
+          } else if (rawValue is Map) {
+            // Trường hợp Firebase trả về dạng Map
+            deviceNames[devId] =
+                rawValue['device_name']?.toString() ??
+                rawValue['name']?.toString() ??
+                devId;
+          } else {
+            deviceNames[devId] = rawValue.toString();
+          }
+        }
+      }
+
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey.shade300),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.03),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.important_devices, color: AppColors.primary),
+            const SizedBox(width: 12),
+            Expanded(
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: _selectedDeviceId,
+                  isExpanded: true,
+                  icon: const Icon(
+                    Icons.arrow_drop_down_circle_outlined,
+                    color: AppColors.primary,
+                  ),
+                  items: deviceEntries.map((entry) {
+                    final String devId = entry.key;
+                    final String role = entry.value.toString();
+                    final bool isOwner = (role == 'owner');
+
+                    // Tên hiển thị an toàn đã xử lý ép kiểu
+                    final String name = deviceNames[devId] ?? devId;
+
+                    return DropdownMenuItem<String>(
+                      value: devId,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              name,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 15,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: isOwner
+                                  ? Colors.blue.shade50
+                                  : Colors.orange.shade50,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              isOwner ? 'Chủ sở hữu' : 'Được chia sẻ',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: isOwner
+                                    ? Colors.blue.shade800
+                                    : Colors.orange.shade800,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                  onChanged: (String? newDeviceId) {
+                    if (newDeviceId != null) {
+                      setState(() {
+                        _selectedDeviceId = newDeviceId;
+                      });
+                    }
+                  },
                 ),
-                items: userDevicesMap.entries.map((entry) {
-                  final String devId = entry.key;
-                  final String role = entry.value.toString();
-                  final bool isOwner = (role == 'owner');
-
-                  return DropdownMenuItem<String>(
-                    value: devId,
-                    child: FutureBuilder<DataSnapshot>(
-                      future: FirebaseDatabase.instance
-                          .ref('devices/$devId/info/device_name')
-                          .get(),
-                      builder: (context, snapshot) {
-                        final String name = (snapshot.hasData && snapshot.data?.value != null)
-                            ? snapshot.data!.value.toString()
-                            : devId;
-
-                        return Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Expanded(
-                              child: Text(
-                                name,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 15,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: isOwner ? Colors.blue.shade50 : Colors.orange.shade50,
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                isOwner ? 'Chủ sở hữu' : 'Được chia sẻ',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                  color: isOwner ? Colors.blue.shade800 : Colors.orange.shade800,
-                                ),
-                              ),
-                            ),
-                          ],
-                        );
-                      },
-                    ),
-                  );
-                }).toList(),
-                onChanged: (String? newDeviceId) {
-                  if (newDeviceId != null) {
-                    setState(() {
-                      _selectedDeviceId = newDeviceId;
-                    });
-                  }
-                },
               ),
             ),
-          ),
-        ],
-      ),
-    );
-  }
+          ],
+        ),
+      );
+    },
+  );
+}
 
   /// Widget Chọn Khoảng Thời Gian
   Widget _buildPeriodSelector() {

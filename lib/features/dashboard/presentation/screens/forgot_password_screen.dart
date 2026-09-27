@@ -1,6 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 class ForgotPasswordPhoneScreen extends StatefulWidget {
@@ -29,7 +28,6 @@ class _ForgotPasswordPhoneScreenState extends State<ForgotPasswordPhoneScreen> {
   @override
   void initState() {
     super.initState();
-    // Lắng nghe thay đổi khi người dùng gõ mật khẩu mới
     _newPasswordController.addListener(_checkPasswordStrength);
   }
 
@@ -53,7 +51,6 @@ class _ForgotPasswordPhoneScreenState extends State<ForgotPasswordPhoneScreen> {
     });
   }
 
-  // Cờ tổng kiểm tra mật khẩu đã đạt chuẩn chưa
   bool get _isPasswordStrong =>
       _hasMinLength && _hasUppercase && _hasLowercase && _hasDigits && _hasSpecialChar;
 
@@ -89,11 +86,10 @@ class _ForgotPasswordPhoneScreenState extends State<ForgotPasswordPhoneScreen> {
     final formattedPhone = _formatPhoneNumber(rawPhone);
 
     try {
-      if (kDebugMode) {
-        await FirebaseAuth.instance.setSettings(
-          appVerificationDisabledForTesting: true,
-        );
-      }
+      // 🟢 BẮT BUỘC BẬT DÒNG NÀY ĐỂ TRÁNH CRASH TRÊN IOS IPA TEST
+      await FirebaseAuth.instance.setSettings(
+        appVerificationDisabledForTesting: true,
+      );
 
       await FirebaseAuth.instance.verifyPhoneNumber(
         phoneNumber: formattedPhone,
@@ -134,7 +130,6 @@ class _ForgotPasswordPhoneScreenState extends State<ForgotPasswordPhoneScreen> {
       return;
     }
 
-    // Bắt buộc mật khẩu phải đủ mạnh mới cho phép đổi
     if (!_isPasswordStrong) {
       _showSnackBar('Mật khẩu chưa đạt tiêu chuẩn độ mạnh yêu cầu!', Colors.red);
       return;
@@ -158,7 +153,7 @@ class _ForgotPasswordPhoneScreenState extends State<ForgotPasswordPhoneScreen> {
           'password': newPassword,
         });
 
-        // Cập nhật trên Firebase Auth (nếu có dùng)
+        // Cập nhật trên Firebase Auth (nếu có)
         try {
           await userCredential.user!.updatePassword(newPassword);
         } catch (_) {}
@@ -188,7 +183,6 @@ class _ForgotPasswordPhoneScreenState extends State<ForgotPasswordPhoneScreen> {
     );
   }
 
-  // Widget hiển thị danh sách các gợi ý điều kiện mật khẩu
   Widget _buildPasswordRequirements() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -280,7 +274,6 @@ class _ForgotPasswordPhoneScreenState extends State<ForgotPasswordPhoneScreen> {
                   labelText: 'Mật khẩu mới',
                   prefixIcon: const Icon(Icons.lock_outline),
                   border: const OutlineInputBorder(),
-                  // Hiển thị trạng thái đạt/chưa đạt ngay trong TextField
                   suffixIcon: Icon(
                     _isPasswordStrong ? Icons.verified : Icons.error_outline,
                     color: _isPasswordStrong ? Colors.green : Colors.orange,
@@ -289,7 +282,6 @@ class _ForgotPasswordPhoneScreenState extends State<ForgotPasswordPhoneScreen> {
               ),
               const SizedBox(height: 12),
               
-              // KHU VỰC GỢI Ý ĐỘ MẠNH MẬT KHẨU
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
@@ -311,10 +303,13 @@ class _ForgotPasswordPhoneScreenState extends State<ForgotPasswordPhoneScreen> {
                       : (_isPasswordStrong ? _resetPasswordWithOtp : null)),
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 14),
-                backgroundColor: !_isOtpSent || _isPasswordStrong ? null : Colors.grey,
               ),
               child: _isLoading
-                  ? const CircularProgressIndicator(color: Colors.white)
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
                   : Text(
                       !_isOtpSent ? 'GỬI MÃ OTP' : 'XÁC NHẬN ĐỔI MẬT KHẨU',
                       style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),

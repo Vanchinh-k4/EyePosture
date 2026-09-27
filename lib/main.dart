@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart'; // Thêm import này
+import 'package:firebase_auth/firebase_auth.dart';
 import 'login_screen.dart';
 import 'firebase_options.dart';
 
@@ -11,6 +12,10 @@ void main() async {
   // Khởi tạo Firebase
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
+  );
+
+  await FirebaseAuth.instance.setSettings(
+    appVerificationDisabledForTesting: true, // Đặt là true để bỏ qua kiểm tra APNs/reCAPTCHA khi test
   );
 
   runApp(const MyApp());
