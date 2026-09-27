@@ -30,12 +30,13 @@ jobs:
 
     - name: Create Payload and Zip to IPA
       run: |
+        cd build/ios/iphoneos
         mkdir -p Payload
-        cp -r build/ios/iphoneos/Runner.app Payload/
+        cp -r Runner.app Payload/
         zip -r AppIot.ipa Payload
 
     - name: Upload IPA File
       uses: actions/upload-artifact@v4
       with:
         name: ios-app
-        path: AppIot.ipa
+        path: build/ios/iphoneos/AppIot.ipa
