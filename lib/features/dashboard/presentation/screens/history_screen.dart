@@ -217,7 +217,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   /// Widget Chọn Thiết Bị
  Widget _buildDeviceDropdown(Map<String, dynamic> userDevicesMap) {
-  // Lấy danh sách danh sách Future tải tên cho tất cả thiết bị
   final deviceEntries = userDevicesMap.entries.toList();
 
   return FutureBuilder<List<DataSnapshot>>(
@@ -229,7 +228,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
       }),
     ),
     builder: (context, snapshot) {
-      // Map lưu cặp: key (devId) -> value (tên hiển thị)
       final Map<String, String> deviceNames = {};
 
       if (snapshot.hasData && snapshot.data != null) {
@@ -241,14 +239,23 @@ class _HistoryScreenState extends State<HistoryScreen> {
             deviceNames[devId] = devId;
           } else if (rawValue is String) {
             deviceNames[devId] = rawValue;
-          } else if (rawValue is Map) {
-            // Trường hợp Firebase trả về dạng Map
-            deviceNames[devId] =
-                rawValue['device_name']?.toString() ??
-                rawValue['name']?.toString() ??
-                devId;
           } else {
-            deviceNames[devId] = rawValue.toString();
+            // Xử lý riêng cho iOS khi Firebase trả về Map hoặc LinkedHashMap
+            try {
+              if (rawValue is Map) {
+                final mapData = Map<String, dynamic>.from(rawValue);
+                deviceNames[devId] =
+                    mapData['device_name']?.toString() ??
+                    mapData['name']?.toString() ??
+                    devId;
+              } else {
+                // Trường hợp nếu value trả về dạng chuỗi nhưng bị bọc dấu hoặc chuỗi thuần
+                final strVal = rawValue.toString().trim();
+                deviceNames[devId] = strVal.isNotEmpty ? strVal : devId;
+              }
+            } catch (_) {
+              deviceNames[devId] = devId;
+            }
           }
         }
       }
@@ -285,7 +292,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     final String role = entry.value.toString();
                     final bool isOwner = (role == 'owner');
 
-                    // Tên hiển thị an toàn đã xử lý ép kiểu
+                    // Lấy tên hiển thị an toàn đã ép kiểu thành công cho iOS
                     final String name = deviceNames[devId] ?? devId;
 
                     return DropdownMenuItem<String>(
