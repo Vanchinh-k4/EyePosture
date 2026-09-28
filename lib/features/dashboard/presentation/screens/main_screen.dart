@@ -5,6 +5,7 @@ import 'package:eye_posture/features/dashboard/presentation/screens/dashboard_sc
 import '/models/user_device_model.dart';
 import 'history_screen.dart'; 
 import 'settings_screen.dart'; 
+import 'notifications_screen.dart'; // 1. Import màn hình thông báo
 
 class MainScreen extends StatefulWidget {
   final String userPhone;
@@ -26,7 +27,6 @@ class _MainScreenState extends State<MainScreen> {
     final cleanPhone = widget.userPhone.trim();
     final deviceId = _selectedDevice!.deviceId;
 
-    // Kiểm tra xem thiết bị còn nằm trong danh sách /users/{phone}/devices hay không
     FirebaseDatabase.instance
         .ref('users/$cleanPhone/devices/$deviceId')
         .onValue
@@ -34,7 +34,7 @@ class _MainScreenState extends State<MainScreen> {
       if (!event.snapshot.exists && _selectedDevice != null) {
         if (mounted) {
           setState(() {
-            _selectedDevice = null; // Tự động trả về trang chọn thiết bị nếu bị xóa
+            _selectedDevice = null;
           });
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -49,7 +49,7 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Tab 1: Trang chủ (Chọn thiết bị hoặc hiển thị Dashboard)
+    // Tab 1: Trang chủ
     Widget homeTabContent = _selectedDevice == null
         ? DeviceSelectionScreen(
             userPhone: widget.userPhone,
@@ -70,21 +70,25 @@ class _MainScreenState extends State<MainScreen> {
             },
           );
 
-    // Tab 2: Lịch sử (Truyền initialDeviceId)
+    // Tab 2: Lịch sử
     Widget historyTabContent = HistoryScreen(
       userPhone: widget.userPhone,
       initialDeviceId: _selectedDevice?.deviceId,
     );
 
-    // Tab 3: Cài đặt
+    // Tab 3: Thông báo (Thêm mới)
+    Widget notificationsTabContent = const NotificationsScreen();
+
+    // Tab 4: Cài đặt
     Widget settingsTabContent = SettingsScreen(
       userPhone: widget.userPhone,
     );
 
-    // Danh sách các Tab màn hình
+    // Danh sách các Tab màn hình (được mở rộng thành 4 tab)
     final List<Widget> pages = [
       homeTabContent,
       historyTabContent,
+      notificationsTabContent,
       settingsTabContent,
     ];
 
@@ -95,6 +99,7 @@ class _MainScreenState extends State<MainScreen> {
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
+        type: BottomNavigationBarType.fixed, // Đảm bảo hiển thị đủ 4 tab không bị xô lệch
         selectedItemColor: const Color(0xFF00A86B),
         unselectedItemColor: Colors.grey,
         onTap: (index) {
@@ -112,6 +117,12 @@ class _MainScreenState extends State<MainScreen> {
             icon: Icon(Icons.history_outlined),
             activeIcon: Icon(Icons.history),
             label: 'Lịch sử',
+          ),
+          // Mục Thông báo mới
+          BottomNavigationBarItem(
+            icon: Icon(Icons.notifications_outlined),
+            activeIcon: Icon(Icons.notifications),
+            label: 'Thông báo',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person_outline),

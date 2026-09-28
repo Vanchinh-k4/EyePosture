@@ -57,15 +57,43 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool get _isPasswordStrong =>
       _hasMinLength && _hasUppercase && _hasLowercase && _hasDigits && _hasSpecialChar;
 
+ // 🟢 Hàm hỗ trợ kiểm tra và chuẩn hóa SĐT Việt Nam (10 số)
+  String? _formatPhoneToLocal(String rawPhone) {
+    String phone = rawPhone.trim().replaceAll(' ', '').replaceAll('-', '');
+
+    if (phone.startsWith('+84')) {
+      phone = '0${phone.substring(3)}';
+    } else if (phone.startsWith('84') && phone.length == 11) {
+      phone = '0${phone.substring(2)}';
+    }
+
+    // Regex SĐT di động Việt Nam: 10 chữ số, bắt đầu bằng 03, 05, 07, 08, 09
+    final vnPhoneRegex = RegExp(r'^0[3|5|7|8|9][0-9]{8}$');
+
+    if (!vnPhoneRegex.hasMatch(phone)) {
+      return null;
+    }
+
+    return phone;
+  }    
+
+  // Xử lý Đăng ký
   // Xử lý Đăng ký
   Future<void> _handleRegister() async {
     final name = _nameController.text.trim();
-    final phone = _phoneController.text.trim();
+    final rawPhone = _phoneController.text.trim();
     final password = _passwordController.text.trim();
     final confirmPassword = _confirmPasswordController.text.trim();
 
-    if (name.isEmpty || phone.isEmpty || password.isEmpty || confirmPassword.isEmpty) {
+    if (name.isEmpty || rawPhone.isEmpty || password.isEmpty || confirmPassword.isEmpty) {
       _showSnackBar('Vui lòng điền đầy đủ tất cả các trường!', Colors.orange);
+      return;
+    }
+
+    // 🟢 1. Kiểm tra tính hợp lệ của Số điện thoại
+    final phone = _formatPhoneToLocal(rawPhone);
+    if (phone == null) {
+      _showSnackBar('Số điện thoại không hợp lệ! Vui lòng nhập đúng 10 số điện thoại Việt Nam.', Colors.orange);
       return;
     }
 
@@ -82,6 +110,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     setState(() => _isLoading = true);
 
     try {
+      // 🟢 2. Lưu và kiểm tra dựa trên `phone` đã được chuẩn hóa
       final userRef = FirebaseDatabase.instance.ref('users/$phone');
 
       // Kiểm tra SĐT đã tồn tại chưa
@@ -97,7 +126,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       // Lưu dạng String lên Firebase
       await userRef.set({
         'name': name,
-        'phone': phone,
+        'phone': phone, // Lưu chuẩn dạng 10 số (VD: 0912345678)
         'password': password,
         'created_at': dateStr,
       });

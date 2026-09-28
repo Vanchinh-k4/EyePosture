@@ -1108,6 +1108,27 @@ class _SharedUsersDialogContentState extends State<_SharedUsersDialogContent> {
       },
     );
   }
+  // Trả về SĐT chuẩn 10 số (đầu 0) nếu hợp lệ, trả về null nếu sai
+String? formatPhoneToLocal(String rawPhone) {
+  // Bỏ khoảng trắng, dấu gạch ngang và các ký tự không phải số (trừ dấu +)
+  String phone = rawPhone.trim().replaceAll(' ', '').replaceAll('-', '');
+
+  // Quy đổi các dạng +84 / 84 về đầu số 0
+  if (phone.startsWith('+84')) {
+    phone = '0${phone.substring(3)}';
+  } else if (phone.startsWith('84') && phone.length == 11) {
+    phone = '0${phone.substring(2)}';
+  }
+
+  // 🟢 Regex chuẩn SĐT di động Việt Nam: Bắt đầu bằng 0
+  final vnPhoneRegex = RegExp(r'^0[3|5|7|8|9][0-9]{8}$');
+
+  if (!vnPhoneRegex.hasMatch(phone)) {
+    return null; // Không phải số điện thoại 10 số hợp lệ tại Việt Nam
+  }
+
+  return phone;
+}
 
   @override
 Widget build(BuildContext context) {
@@ -1208,104 +1229,127 @@ Widget build(BuildContext context) {
                   ),
                 ),
                 const SizedBox(width: 8),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                  ),
-                  onPressed: _isAdding
-                      ? null
-                      : () async {
-                          final targetPhone = _addPhoneController.text.trim();
-                          if (targetPhone.isEmpty) return;
+ElevatedButton(
+  style: ElevatedButton.styleFrom(
+    backgroundColor: AppColors.primary,
+    padding: const EdgeInsets.symmetric(horizontal: 12),
+  ),
+  onPressed: _isAdding
+    ? null
+    : () async {
+        final rawPhone = _addPhoneController.text.trim();
+        if (rawPhone.isEmpty) return;
 
-                          if (targetPhone == widget.device.ownerPhone) {
-                            ScaffoldMessenger.of(widget.parentContext).showSnackBar(
-                              const SnackBar(
-                                content: Text('Không thể chia sẻ cho chính tài khoản chủ sở hữu!'),
-                                backgroundColor: Colors.orange,
-                              ),
-                            );
-                            return;
-                          }
+        // 🟢 1. Quy đổi SĐT & Kiểm tra định dạng hợp lệ
+        final targetPhone = formatPhoneToLocal(rawPhone);
 
-                          setState(() => _isAdding = true);
+        if (targetPhone == null) {
+          if (widget.parentContext.mounted) {
+            ScaffoldMessenger.of(widget.parentContext).showSnackBar(
+              const SnackBar(
+                content: Text('Số điện thoại không đúng định dạng! Vui lòng kiểm tra lại.'),
+                backgroundColor: Colors.orange,
+              ),
+            );
+          }
+          return;
+        }
 
-                          try {
-                            final dbRef = FirebaseDatabase.instance.ref();
+        final ownerPhone = formatPhoneToLocal(widget.device.ownerPhone);
 
-                            final existingSnap = await dbRef
-                                .child('devices/${widget.device.deviceId}/shared_users/$targetPhone')
-                                .get();
+        // 🟢 2. So sánh với số của chủ sở hữu
+        if (targetPhone == ownerPhone) {
+          if (widget.parentContext.mounted) {
+            ScaffoldMessenger.of(widget.parentContext).showSnackBar(
+              const SnackBar(
+                content: Text('Không thể chia sẻ cho chính tài khoản chủ sở hữu!'),
+                backgroundColor: Colors.orange,
+              ),
+            );
+          }
+          return;
+        }
 
-                            if (existingSnap.exists) {
-                              if (widget.parentContext.mounted) {
-                                ScaffoldMessenger.of(widget.parentContext).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Số điện thoại này đã được chia sẻ từ trước!'),
-                                    backgroundColor: Colors.orange,
-                                  ),
-                                );
-                              }
-                              return;
-                            }
+        setState(() => _isAdding = true);
 
-                            final userSnap = await dbRef.child('users/$targetPhone').get();
+        try {
+          final dbRef = FirebaseDatabase.instance.ref();
 
-                            if (!userSnap.exists) {
-                              if (widget.parentContext.mounted) {
-                                ScaffoldMessenger.of(widget.parentContext).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Số điện thoại chưa đăng ký ứng dụng!'),
-                                    backgroundColor: Colors.orange,
-                                  ),
-                                );
-                              }
-                              return;
-                            }
+          // 🟢 3. Kiểm tra trong shared_users theo SĐT chuẩn đã lọc
+          final existingSnap = await dbRef
+              .child('devices/${widget.device.deviceId}/shared_users/$targetPhone')
+              .get();
 
-                            final Map<String, dynamic> updates = {
-                              'devices/${widget.device.deviceId}/shared_users/$targetPhone': true,
-                              'users/$targetPhone/devices/${widget.device.deviceId}': 'viewer',
-                            };
-
-                            await dbRef.update(updates);
-
-                            _addPhoneController.clear();
-                            if (widget.parentContext.mounted) {
-                              ScaffoldMessenger.of(widget.parentContext).showSnackBar(
-                                SnackBar(
-                                  content: Text('Đã chia sẻ thành công cho SĐT: $targetPhone'),
-                                  backgroundColor: Colors.green,
-                                ),
-                              );
-                            }
-                          } catch (e) {
-                            if (widget.parentContext.mounted) {
-                              ScaffoldMessenger.of(widget.parentContext).showSnackBar(
-                                SnackBar(
-                                  content: Text('Có lỗi xảy ra: $e'),
-                                  backgroundColor: Colors.red,
-                                ),
-                              );
-                            }
-                          } finally {
-                            if (mounted) {
-                              setState(() => _isAdding = false);
-                            }
-                          }
-                        },
-                  child: _isAdding
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
-                          ),
-                        )
-                      : const Text('Thêm', style: TextStyle(color: Colors.white)),
+          if (existingSnap.exists && existingSnap.value != null) {
+            if (widget.parentContext.mounted) {
+              ScaffoldMessenger.of(widget.parentContext).showSnackBar(
+                const SnackBar(
+                  content: Text('Số điện thoại này đã được chia sẻ từ trước!'),
+                  backgroundColor: Colors.orange,
                 ),
+              );
+            }
+            return;
+          }
+
+          // 🟢 4. Kiểm tra user tồn tại theo SĐT chuẩn
+          final userSnap = await dbRef.child('users/$targetPhone').get();
+
+          if (!userSnap.exists || userSnap.value == null) {
+            if (widget.parentContext.mounted) {
+              ScaffoldMessenger.of(widget.parentContext).showSnackBar(
+                const SnackBar(
+                  content: Text('Số điện thoại chưa đăng ký ứng dụng!'),
+                  backgroundColor: Colors.orange,
+                ),
+              );
+            }
+            return;
+          }
+
+          // 🟢 5. Cập nhật dữ liệu
+          final Map<String, dynamic> updates = {
+            'devices/${widget.device.deviceId}/shared_users/$targetPhone': true,
+            'users/$targetPhone/devices/${widget.device.deviceId}': 'viewer',
+          };
+
+          await dbRef.update(updates);
+
+          _addPhoneController.clear();
+          if (widget.parentContext.mounted) {
+            ScaffoldMessenger.of(widget.parentContext).showSnackBar(
+              SnackBar(
+                content: Text('Đã chia sẻ thành công cho SĐT: $targetPhone'),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
+        } catch (e) {
+          if (widget.parentContext.mounted) {
+            ScaffoldMessenger.of(widget.parentContext).showSnackBar(
+              SnackBar(
+                content: Text('Có lỗi xảy ra: $e'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        } finally {
+          if (mounted) {
+            setState(() => _isAdding = false);
+          }
+        }
+        },
+  child: _isAdding
+      ? const SizedBox(
+          width: 16,
+          height: 16,
+          child: CircularProgressIndicator(
+            color: Colors.white,
+            strokeWidth: 2,
+          ),
+        )
+      : const Text('Thêm', style: TextStyle(color: Colors.white)),
+)
               ],
             ),
             const Divider(height: 24),
