@@ -209,76 +209,73 @@ class DeviceSelectionScreen extends StatelessWidget {
                 const SizedBox(height: 12),
 
                 Expanded(
-  child: rawDevicesMap.isEmpty
-      ? Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.devices_other,
-                size: 64,
-                color: Colors.grey[400],
-              ),
-              const SizedBox(height: 12),
-              const Text(
-                'Bạn chưa liên kết thiết bị nào.\nNhấn nút bên dưới để thêm thiết bị!',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey),
-              ),
-            ],
-          ),
-        )
-      : ListView.builder(
-          // Cộng thêm 1 item để chứa khung Lưu ý ở cuối danh sách
-          itemCount: rawDevicesMap.length + 1,
-          itemBuilder: (context, index) {
-            // Nếu là item cuối cùng -> Hiển thị khung Mẹo / Lưu ý
-            if (index == rawDevicesMap.length) {
-              return Container(
-                width: double.infinity,
-                margin: const EdgeInsets.only(top: 8, bottom: 80), // Padding bottom 80px để chừa chỗ cho FAB
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                decoration: BoxDecoration(
-                  color: Colors.amber.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.amber.shade200),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.info_outline, size: 20, color: Colors.amber.shade900),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Mẹo: Nếu thiết bị mất kết nối (Offline), hãy khởi động lại thiết bị hoặc mở mục "Chia sẻ / AP Config" để cấu hình lại Wi-Fi.',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.amber.shade900,
-                          fontWeight: FontWeight.w500,
+                  child: rawDevicesMap.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.devices_other,
+                                size: 64,
+                                color: Colors.grey[400],
+                              ),
+                              const SizedBox(height: 12),
+                              const Text(
+                                'Bạn chưa liên kết thiết bị nào.\nNhấn nút bên dưới để thêm thiết bị!',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(color: Colors.grey),
+                              ),
+                            ],
+                          ),
+                        )
+                      : ListView.builder(
+                          itemCount: rawDevicesMap.length + 1,
+                          itemBuilder: (context, index) {
+                            if (index == rawDevicesMap.length) {
+                              return Container(
+                                width: double.infinity,
+                                margin: const EdgeInsets.only(top: 8, bottom: 80),
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: Colors.amber.shade50,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: Colors.amber.shade200),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.info_outline, size: 20, color: Colors.amber.shade900),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        'Mẹo: Nếu thiết bị mất kết nối (Offline), hãy khởi động lại thiết bị hoặc mở mục "Chia sẻ / AP Config" để cấu hình lại Wi-Fi.',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.amber.shade900,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }
+
+                            final String deviceId = rawDevicesMap.keys.elementAt(index).toString();
+                            final String role = rawDevicesMap[deviceId].toString();
+                            final bool isOwner = (role == 'owner');
+
+                            return _DeviceTileItem(
+                              key: ValueKey(deviceId),
+                              deviceId: deviceId,
+                              isOwner: isOwner,
+                              onSelectDevice: onSelectDevice,
+                              onEdit: (device) => _showEditDeviceDialog(context, device),
+                              onShare: (device, isOnline) => _showSharedUsersDialog(context, device, isOnline),
+                              onDelete: (device) => _confirmDeleteDevice(context, device, isOwner),
+                            );
+                          },
                         ),
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }
-
-            // Các item thiết bị bình thường
-            final String deviceId = rawDevicesMap.keys.elementAt(index).toString();
-            final String role = rawDevicesMap[deviceId].toString();
-            final bool isOwner = (role == 'owner');
-
-            return _DeviceTileItem(
-              key: ValueKey(deviceId),
-              deviceId: deviceId,
-              isOwner: isOwner,
-              onSelectDevice: onSelectDevice,
-              onEdit: (device) => _showEditDeviceDialog(context, device),
-              onShare: (device, isOnline) => _showSharedUsersDialog(context, device, isOnline),
-              onDelete: (device) => _confirmDeleteDevice(context, device, isOwner),
-            );
-          },
-        ),
-)
+                )
               ],
             ),
           );
@@ -341,7 +338,6 @@ class _DeviceTileItem extends StatelessWidget {
         );
         final DeviceModel device = DeviceModel.fromMap(deviceId, rawMap);
 
-        // 1. Đọc last_seen linh hoạt (từ root node hoặc info node)
         final Map infoMap = (rawMap['info'] is Map) ? rawMap['info'] as Map : {};
         final dynamic rawLastSeen = rawMap['last_seen'] ?? infoMap['last_seen'];
         final int lastSeen = (rawLastSeen is int) ? rawLastSeen : 0;
@@ -349,7 +345,6 @@ class _DeviceTileItem extends StatelessWidget {
         final bool isOnline = lastSeen > 0 &&
             (DateTime.now().millisecondsSinceEpoch - lastSeen) <= 60000;
 
-        // 2. Đọc tên Wi-Fi (SSID) từ wifi_info
         final Map wifiMap = (rawMap['wifi_info'] is Map) ? rawMap['wifi_info'] as Map : {};
         final String wifiSsid = wifiMap['ssid']?.toString() ?? 'Chưa cấu hình';
 
@@ -367,8 +362,6 @@ class _DeviceTileItem extends StatelessWidget {
                 color: isOnline ? Colors.green : Colors.grey.shade700,
               ),
             ),
-            
-            // --- TÊN THIẾT BỊ ---
             title: Text(
               device.deviceName,
               style: TextStyle(
@@ -376,8 +369,6 @@ class _DeviceTileItem extends StatelessWidget {
                 color: isOnline ? Colors.black87 : Colors.grey.shade700,
               ),
             ),
-
-            // --- THÔNG TIN BÊN TRÁI: ID VÀ TÊN WIFI ---
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -386,27 +377,24 @@ class _DeviceTileItem extends StatelessWidget {
                   'ID: ${device.deviceId}',
                   style: const TextStyle(fontSize: 12, color: Colors.grey),
                 ),
-                // THÊM TÊN WIFI VÀO BÊN DƯỚI ID
-                if(isOnline) ...[
+                if (isOnline) ...[
                   const SizedBox(height: 2),
-                Row(
-                  children: [
-                    const Icon(Icons.wifi, size: 13, color: Colors.grey),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        'Wi-Fi: $wifiSsid',
-                        style: const TextStyle(fontSize: 12, color: Colors.grey),
-                        overflow: TextOverflow.ellipsis,
+                  Row(
+                    children: [
+                      const Icon(Icons.wifi, size: 13, color: Colors.grey),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          'Wi-Fi: $wifiSsid',
+                          style: const TextStyle(fontSize: 12, color: Colors.grey),
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
-                    ),
-                  ],
-                ),
+                    ],
+                  ),
+                ],
               ],
-            ],
             ),
-
-            // --- CỘT BÊN PHẢI: CHỦ SỞ HỮU VÀ TRẠNG THÁI TRỰC TUYẾN ---
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -414,7 +402,6 @@ class _DeviceTileItem extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    // Tag Vai trò
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
@@ -431,8 +418,6 @@ class _DeviceTileItem extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 6),
-                    
-                    // CHUYỂN TRẠNG THÁI TRỰC TUYẾN XUỐNG DƯỚI CỘT BÊN PHẢI
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -458,8 +443,6 @@ class _DeviceTileItem extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(width: 4),
-
-                // Nút Menu 3 chấm
                 PopupMenuButton<String>(
                   onSelected: (value) {
                     if (value == 'edit') onEdit(device);
@@ -510,8 +493,6 @@ class _DeviceTileItem extends StatelessWidget {
                 ),
               ],
             ),
-
-            // Sự kiện Click vào Card
             onTap: () {
               if (isOnline) {
                 onSelectDevice(device);
@@ -654,7 +635,6 @@ class _EditDeviceDialogContentState extends State<_EditDeviceDialogContent> {
                 ),
               ),
               const SizedBox(height: 12),
-
               TextFormField(
                 controller: _nameController,
                 decoration: const InputDecoration(
@@ -666,7 +646,6 @@ class _EditDeviceDialogContentState extends State<_EditDeviceDialogContent> {
                     val == null || val.trim().isEmpty ? 'Vui lòng nhập tên' : null,
               ),
               const SizedBox(height: 12),
-
               TextFormField(
                 controller: _ssidController,
                 decoration: const InputDecoration(
@@ -686,7 +665,6 @@ class _EditDeviceDialogContentState extends State<_EditDeviceDialogContent> {
                 },
               ),
               const SizedBox(height: 12),
-
               TextFormField(
                 controller: _passController,
                 obscureText: _obscurePassword,
@@ -809,17 +787,12 @@ class _SharedUsersDialogContentState extends State<_SharedUsersDialogContent> {
     );
   }
 
-  // =========================================================================
-  // CHỈ GỬI SSID VÀ PASSWORD SANG ESP32 (KHÔNG THÊM THIẾT BỊ MỚI)
-  // =========================================================================
   Future<bool> _sendOnlyWifiCredentialsViaHTTP({
     required String wifiSsid,
     required String wifiPass,
   }) async {
     try {
       final url = Uri.parse('http://192.168.4.1/config');
-      
-      // Payload gọn nhẹ: chỉ có SSID và Password
       final response = await http.post(
         url,
         headers: {'Content-Type': 'application/json'},
@@ -836,7 +809,6 @@ class _SharedUsersDialogContentState extends State<_SharedUsersDialogContent> {
     }
   }
 
-  // CHỈ CẬP NHẬT LẠI NODE WIFI_INFO TRÊN DB SẴN CÓ
   Future<void> _updateWifiInfoOnFirebaseSilently({
     required String wifiSsid,
     required String wifiPass,
@@ -848,7 +820,6 @@ class _SharedUsersDialogContentState extends State<_SharedUsersDialogContent> {
     });
   }
 
-  // DIALOG CẤU HÌNH WIFI AP (CHỈ NHẬP WIFI)
   void _openApConfigDialog(BuildContext parentContext) {
     final formKey = GlobalKey<FormState>();
     final wifiSsidController = TextEditingController(text: widget.device.wifiInfo?.ssid ?? '');
@@ -907,7 +878,6 @@ class _SharedUsersDialogContentState extends State<_SharedUsersDialogContent> {
                         ),
                       ),
                       const SizedBox(height: 12),
-
                       Container(
                         width: double.infinity,
                         padding: const EdgeInsets.all(10),
@@ -978,7 +948,6 @@ class _SharedUsersDialogContentState extends State<_SharedUsersDialogContent> {
                         ),
                       ),
                       const SizedBox(height: 16),
-
                       TextFormField(
                         controller: wifiSsidController,
                         enabled: !isSendingHTTP,
@@ -999,7 +968,6 @@ class _SharedUsersDialogContentState extends State<_SharedUsersDialogContent> {
                         },
                       ),
                       const SizedBox(height: 12),
-
                       TextFormField(
                         controller: wifiPasswordController,
                         enabled: !isSendingHTTP,
@@ -1022,7 +990,6 @@ class _SharedUsersDialogContentState extends State<_SharedUsersDialogContent> {
                         validator: (val) =>
                             val == null || val.isEmpty ? 'Vui lòng nhập mật khẩu' : null,
                       ),
-
                       if (isSendingHTTP) ...[
                         const SizedBox(height: 20),
                         const CircularProgressIndicator(),
@@ -1057,7 +1024,6 @@ class _SharedUsersDialogContentState extends State<_SharedUsersDialogContent> {
                             final String cleanSsid = wifiSsidController.text.trim();
                             final String cleanPass = wifiPasswordController.text.trim();
 
-                            // CHỈ GỬI SSID VA PASS SANG ESP32
                             bool httpSuccess = await _sendOnlyWifiCredentialsViaHTTP(
                               wifiSsid: cleanSsid,
                               wifiPass: cleanPass,
@@ -1066,7 +1032,6 @@ class _SharedUsersDialogContentState extends State<_SharedUsersDialogContent> {
                             if (!dialogContext.mounted) return;
 
                             if (httpSuccess) {
-                              // ĐỒNG BỘ NÚT WIFI_INFO LÊN FIREBASE MÀ KHÔNG ĐỤNG ĐẾN THIẾT BỊ KHÁC
                               await _updateWifiInfoOnFirebaseSilently(
                                 wifiSsid: cleanSsid,
                                 wifiPass: cleanPass,
@@ -1108,361 +1073,363 @@ class _SharedUsersDialogContentState extends State<_SharedUsersDialogContent> {
       },
     );
   }
-  // Trả về SĐT chuẩn 10 số (đầu 0) nếu hợp lệ, trả về null nếu sai
-String? formatPhoneToLocal(String rawPhone) {
-  // Bỏ khoảng trắng, dấu gạch ngang và các ký tự không phải số (trừ dấu +)
-  String phone = rawPhone.trim().replaceAll(' ', '').replaceAll('-', '');
 
-  // Quy đổi các dạng +84 / 84 về đầu số 0
-  if (phone.startsWith('+84')) {
-    phone = '0${phone.substring(3)}';
-  } else if (phone.startsWith('84') && phone.length == 11) {
-    phone = '0${phone.substring(2)}';
+  String? formatPhoneToLocal(String rawPhone) {
+    String phone = rawPhone.trim().replaceAll(' ', '').replaceAll('-', '');
+
+    if (phone.startsWith('+84')) {
+      phone = '0${phone.substring(3)}';
+    } else if (phone.startsWith('84') && phone.length == 11) {
+      phone = '0${phone.substring(2)}';
+    }
+
+    final vnPhoneRegex = RegExp(r'^0[3|5|7|8|9][0-9]{8}$');
+
+    if (!vnPhoneRegex.hasMatch(phone)) {
+      return null;
+    }
+
+    return phone;
   }
-
-  // 🟢 Regex chuẩn SĐT di động Việt Nam: Bắt đầu bằng 0
-  final vnPhoneRegex = RegExp(r'^0[3|5|7|8|9][0-9]{8}$');
-
-  if (!vnPhoneRegex.hasMatch(phone)) {
-    return null; // Không phải số điện thoại 10 số hợp lệ tại Việt Nam
-  }
-
-  return phone;
-}
 
   @override
-Widget build(BuildContext context) {
-  final bool isOffline = !widget.isOnline;
+  Widget build(BuildContext context) {
+    final bool isOffline = !widget.isOnline;
 
-  return AlertDialog(
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-    title: Text('Tài khoản liên kết: ${widget.device.deviceName}'),
-    content: SizedBox(
-      width: double.maxFinite,
-      // BỌC TRONG SingleChildScrollView ĐỂ TRÁNH LỖI OVERFLOW 
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ==================== KHU VỰC CẤU HÌNH WIFI KHI OFFLINE ====================
-            if (isOffline) ...[
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.orange.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.orange.shade200),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Row(
-                      children: [
-                        Icon(Icons.wifi_off, color: Colors.orange, size: 20),
-                        SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Thiết bị đang Ngoại tuyến (Offline)',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: Colors.orange,
-                              fontSize: 12,
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: Text('Tài khoản liên kết: ${widget.device.deviceName}'),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (isOffline) ...[
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.orange.shade200),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Row(
+                        children: [
+                          Icon(Icons.wifi_off, color: Colors.orange, size: 20),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Thiết bị đang Ngoại tuyến (Offline)',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.orange,
+                                fontSize: 12,
+                              ),
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    const Text(
-                      'Kết nối điện thoại vào Wi-Fi do thiết bị phát ra để truyền Wi-Fi mới:',
-                      style: TextStyle(fontSize: 11, color: Colors.black87),
-                    ),
-                    const SizedBox(height: 8),
-
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.orange.shade800,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                        ),
-                        icon: const Icon(Icons.settings_remote, size: 16),
-                        label: const Text(
-                          'Cấu hình lại Wi-Fi AP',
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                        ),
-                        onPressed: () {
-                          _openApConfigDialog(context);
-                        },
+                        ],
                       ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 12),
-            ],
-
-            // ==================== THÊM TÀI KHOẢN MỚI ====================
-            const Text(
-              'Thêm tài khoản mới:',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-            ),
-            const SizedBox(height: 6),
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _addPhoneController,
-                    keyboardType: TextInputType.phone,
-                    enabled: !_isAdding,
-                    decoration: const InputDecoration(
-                      hintText: 'Nhập SĐT cần chia sẻ',
-                      isDense: true,
-                      contentPadding: EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 10,
+                      const SizedBox(height: 6),
+                      const Text(
+                        'Kết nối điện thoại vào Wi-Fi do thiết bị phát ra để truyền Wi-Fi mới:',
+                        style: TextStyle(fontSize: 11, color: Colors.black87),
                       ),
-                      border: OutlineInputBorder(),
-                    ),
+                      const SizedBox(height: 8),
+
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.orange.shade800,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                          ),
+                          icon: const Icon(Icons.settings_remote, size: 16),
+                          label: const Text(
+                            'Cấu hình lại Wi-Fi AP',
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                          ),
+                          onPressed: () {
+                            _openApConfigDialog(context);
+                          },
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(width: 8),
-ElevatedButton(
-  style: ElevatedButton.styleFrom(
-    backgroundColor: AppColors.primary,
-    padding: const EdgeInsets.symmetric(horizontal: 12),
-  ),
-  onPressed: _isAdding
-    ? null
-    : () async {
-        final rawPhone = _addPhoneController.text.trim();
-        if (rawPhone.isEmpty) return;
-
-        // 🟢 1. Quy đổi SĐT & Kiểm tra định dạng hợp lệ
-        final targetPhone = formatPhoneToLocal(rawPhone);
-
-        if (targetPhone == null) {
-          if (widget.parentContext.mounted) {
-            ScaffoldMessenger.of(widget.parentContext).showSnackBar(
-              const SnackBar(
-                content: Text('Số điện thoại không đúng định dạng! Vui lòng kiểm tra lại.'),
-                backgroundColor: Colors.orange,
-              ),
-            );
-          }
-          return;
-        }
-
-        final ownerPhone = formatPhoneToLocal(widget.device.ownerPhone);
-
-        // 🟢 2. So sánh với số của chủ sở hữu
-        if (targetPhone == ownerPhone) {
-          if (widget.parentContext.mounted) {
-            ScaffoldMessenger.of(widget.parentContext).showSnackBar(
-              const SnackBar(
-                content: Text('Không thể chia sẻ cho chính tài khoản chủ sở hữu!'),
-                backgroundColor: Colors.orange,
-              ),
-            );
-          }
-          return;
-        }
-
-        setState(() => _isAdding = true);
-
-        try {
-          final dbRef = FirebaseDatabase.instance.ref();
-
-          // 🟢 3. Kiểm tra trong shared_users theo SĐT chuẩn đã lọc
-          final existingSnap = await dbRef
-              .child('devices/${widget.device.deviceId}/shared_users/$targetPhone')
-              .get();
-
-          if (existingSnap.exists && existingSnap.value != null) {
-            if (widget.parentContext.mounted) {
-              ScaffoldMessenger.of(widget.parentContext).showSnackBar(
-                const SnackBar(
-                  content: Text('Số điện thoại này đã được chia sẻ từ trước!'),
-                  backgroundColor: Colors.orange,
-                ),
-              );
-            }
-            return;
-          }
-
-          // 🟢 4. Kiểm tra user tồn tại theo SĐT chuẩn
-          final userSnap = await dbRef.child('users/$targetPhone').get();
-
-          if (!userSnap.exists || userSnap.value == null) {
-            if (widget.parentContext.mounted) {
-              ScaffoldMessenger.of(widget.parentContext).showSnackBar(
-                const SnackBar(
-                  content: Text('Số điện thoại chưa đăng ký ứng dụng!'),
-                  backgroundColor: Colors.orange,
-                ),
-              );
-            }
-            return;
-          }
-
-          // 🟢 5. Cập nhật dữ liệu
-          final Map<String, dynamic> updates = {
-            'devices/${widget.device.deviceId}/shared_users/$targetPhone': true,
-            'users/$targetPhone/devices/${widget.device.deviceId}': 'viewer',
-          };
-
-          await dbRef.update(updates);
-
-          _addPhoneController.clear();
-          if (widget.parentContext.mounted) {
-            ScaffoldMessenger.of(widget.parentContext).showSnackBar(
-              SnackBar(
-                content: Text('Đã chia sẻ thành công cho SĐT: $targetPhone'),
-                backgroundColor: Colors.green,
-              ),
-            );
-          }
-        } catch (e) {
-          if (widget.parentContext.mounted) {
-            ScaffoldMessenger.of(widget.parentContext).showSnackBar(
-              SnackBar(
-                content: Text('Có lỗi xảy ra: $e'),
-                backgroundColor: Colors.red,
-              ),
-            );
-          }
-        } finally {
-          if (mounted) {
-            setState(() => _isAdding = false);
-          }
-        }
-        },
-  child: _isAdding
-      ? const SizedBox(
-          width: 16,
-          height: 16,
-          child: CircularProgressIndicator(
-            color: Colors.white,
-            strokeWidth: 2,
-          ),
-        )
-      : const Text('Thêm', style: TextStyle(color: Colors.white)),
-)
+                const SizedBox(height: 12),
               ],
-            ),
-            const Divider(height: 24),
 
-            // ==================== DANH SÁCH ĐÃ CHIA SẺ ====================
-            const Text(
-              'Danh sách đã chia sẻ:',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-            ),
-            const SizedBox(height: 8),
-            StreamBuilder<DatabaseEvent>(
-              stream: FirebaseDatabase.instance
-                  .ref('devices/${widget.device.deviceId}/shared_users')
-                  .onValue,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(8.0),
-                      child: CircularProgressIndicator(),
+              const Text(
+                'Thêm tài khoản mới:',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+              ),
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _addPhoneController,
+                      keyboardType: TextInputType.phone,
+                      enabled: !_isAdding,
+                      decoration: const InputDecoration(
+                        hintText: 'Nhập SĐT cần chia sẻ',
+                        isDense: true,
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 10,
+                        ),
+                        border: OutlineInputBorder(),
+                      ),
                     ),
-                  );
-                }
-
-                if (!snapshot.hasData || snapshot.data?.snapshot.value == null) {
-                  return const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 8.0),
-                    child: Text(
-                      'Chưa chia sẻ cho tài khoản nào.',
-                      style: TextStyle(color: Colors.grey, fontSize: 12),
+                  ),
+                  const SizedBox(width: 8),
+                  
+                  // ==================== NÚT THÊM SĐT CHIA SẺ ĐÃ SỬA LỖI IOS/ANDROID ====================
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
                     ),
-                  );
-                }
+                    onPressed: _isAdding
+                        ? null
+                        : () async {
+                            final rawPhone = _addPhoneController.text.trim();
+                            if (rawPhone.isEmpty) return;
 
-                final sharedMap = Map<String, dynamic>.from(
-                  snapshot.data!.snapshot.value as Map<dynamic, dynamic>,
-                );
+                            final targetPhone = formatPhoneToLocal(rawPhone);
 
-                // GIỚI HẠN CHIỀU CAO VÀ CHO PHÉP CUỘN BÊN TRONG LISTVIEW NẾU QUÁ DÀI
-                return ConstrainedBox(
-                  constraints: const BoxConstraints(maxHeight: 180),
-                  child: ListView.builder(
-                    shrinkWrap: true,
-                    physics: const ClampingScrollPhysics(),
-                    itemCount: sharedMap.length,
-                    itemBuilder: (context, index) {
-                      final sharedPhone = sharedMap.keys.elementAt(index);
-                      return ListTile(
-                        dense: true,
-                        contentPadding: EdgeInsets.zero,
-                        leading: const Icon(Icons.person, color: AppColors.primary),
-                        title: Text(sharedPhone),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.remove_circle, color: Colors.red),
-                          onPressed: () async {
-                            final confirm = await showDialog<bool>(
-                              context: context,
-                              builder: (ctx) => AlertDialog(
-                                title: const Text('Xác nhận hủy chia sẻ'),
-                                content: Text(
-                                  'Bạn có chắc chắn muốn ngắt quyền truy cập của $sharedPhone?',
-                                ),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () => Navigator.pop(ctx, false),
-                                    child: const Text('Hủy'),
-                                  ),
-                                  TextButton(
-                                    onPressed: () => Navigator.pop(ctx, true),
-                                    child: const Text(
-                                      'Xác nhận',
-                                      style: TextStyle(color: Colors.red),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            );
-
-                            if (confirm == true) {
-                              final dbRef = FirebaseDatabase.instance.ref();
-                              final Map<String, dynamic> updates = {
-                                'devices/${widget.device.deviceId}/shared_users/$sharedPhone': null,
-                                'users/$sharedPhone/devices/${widget.device.deviceId}': null,
-                              };
-                              await dbRef.update(updates);
-
+                            if (targetPhone == null) {
                               if (widget.parentContext.mounted) {
                                 ScaffoldMessenger.of(widget.parentContext).showSnackBar(
-                                  SnackBar(
-                                    content: Text('Đã hủy chia sẻ với $sharedPhone'),
-                                    backgroundColor: Colors.blueGrey,
+                                  const SnackBar(
+                                    content: Text('Số điện thoại không đúng định dạng! Vui lòng kiểm tra lại.'),
+                                    backgroundColor: Colors.orange,
                                   ),
                                 );
                               }
+                              return;
+                            }
+
+                            final ownerPhone = formatPhoneToLocal(widget.device.ownerPhone);
+
+                            if (targetPhone == ownerPhone) {
+                              if (widget.parentContext.mounted) {
+                                ScaffoldMessenger.of(widget.parentContext).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Không thể chia sẻ cho chính tài khoản chủ sở hữu!'),
+                                    backgroundColor: Colors.orange,
+                                  ),
+                                );
+                              }
+                              return;
+                            }
+
+                            setState(() => _isAdding = true);
+
+                            try {
+                              final dbRef = FirebaseDatabase.instance.ref();
+                              final String intlPhone = '+84${targetPhone.substring(1)}';
+
+                              // Kiểm tra trên shared_users ở CẢ 2 định dạng (09x... và +84x...)
+                              final snapLocal = await dbRef
+                                  .child('devices/${widget.device.deviceId}/shared_users/$targetPhone')
+                                  .get();
+                              final snapIntl = await dbRef
+                                  .child('devices/${widget.device.deviceId}/shared_users/$intlPhone')
+                                  .get();
+
+                              if ((snapLocal.exists && snapLocal.value != null) ||
+                                  (snapIntl.exists && snapIntl.value != null)) {
+                                if (widget.parentContext.mounted) {
+                                  ScaffoldMessenger.of(widget.parentContext).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Số điện thoại này đã được chia sẻ từ trước!'),
+                                      backgroundColor: Colors.orange,
+                                    ),
+                                  );
+                                }
+                                return;
+                              }
+
+                              // Kiểm tra người dùng tồn tại ở CẢ 2 định dạng
+                              DataSnapshot userSnap = await dbRef.child('users/$targetPhone').get();
+                              String validUserKey = targetPhone;
+
+                              if (!userSnap.exists || userSnap.value == null) {
+                                userSnap = await dbRef.child('users/$intlPhone').get();
+                                validUserKey = intlPhone;
+                              }
+
+                              if (!userSnap.exists || userSnap.value == null) {
+                                if (widget.parentContext.mounted) {
+                                  ScaffoldMessenger.of(widget.parentContext).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Số điện thoại chưa đăng ký ứng dụng!'),
+                                      backgroundColor: Colors.orange,
+                                    ),
+                                  );
+                                }
+                                return;
+                              }
+
+                              final Map<String, dynamic> updates = {
+                                'devices/${widget.device.deviceId}/shared_users/$targetPhone': true,
+                                'users/$validUserKey/devices/${widget.device.deviceId}': 'viewer',
+                              };
+
+                              await dbRef.update(updates);
+
+                              _addPhoneController.clear();
+                              if (widget.parentContext.mounted) {
+                                ScaffoldMessenger.of(widget.parentContext).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Đã chia sẻ thành công cho SĐT: $targetPhone'),
+                                    backgroundColor: Colors.green,
+                                  ),
+                                );
+                              }
+                            } catch (e) {
+                              if (widget.parentContext.mounted) {
+                                ScaffoldMessenger.of(widget.parentContext).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Có lỗi xảy ra: $e'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                            } finally {
+                              if (mounted) {
+                                setState(() => _isAdding = false);
+                              }
                             }
                           },
-                        ),
-                      );
-                    },
-                  ),
-                );
-              },
-            ),
-          ],
+                    child: _isAdding
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Text('Thêm', style: TextStyle(color: Colors.white)),
+                  )
+                ],
+              ),
+              const Divider(height: 24),
+
+              const Text(
+                'Danh sách đã chia sẻ:',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+              ),
+              const SizedBox(height: 8),
+              StreamBuilder<DatabaseEvent>(
+                stream: FirebaseDatabase.instance
+                    .ref('devices/${widget.device.deviceId}/shared_users')
+                    .onValue,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(8.0),
+                        child: CircularProgressIndicator(),
+                      ),
+                    );
+                  }
+
+                  if (!snapshot.hasData || snapshot.data?.snapshot.value == null) {
+                    return const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 8.0),
+                      child: Text(
+                        'Chưa chia sẻ cho tài khoản nào.',
+                        style: TextStyle(color: Colors.grey, fontSize: 12),
+                      ),
+                    );
+                  }
+
+                  final sharedMap = Map<String, dynamic>.from(
+                    snapshot.data!.snapshot.value as Map<dynamic, dynamic>,
+                  );
+
+                  return ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 180),
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      physics: const ClampingScrollPhysics(),
+                      itemCount: sharedMap.length,
+                      itemBuilder: (context, index) {
+                        final sharedPhone = sharedMap.keys.elementAt(index);
+                        return ListTile(
+                          dense: true,
+                          contentPadding: EdgeInsets.zero,
+                          leading: const Icon(Icons.person, color: AppColors.primary),
+                          title: Text(sharedPhone),
+                          trailing: IconButton(
+                            icon: const Icon(Icons.remove_circle, color: Colors.red),
+                            onPressed: () async {
+                              final confirm = await showDialog<bool>(
+                                context: context,
+                                builder: (ctx) => AlertDialog(
+                                  title: const Text('Xác nhận hủy chia sẻ'),
+                                  content: Text(
+                                    'Bạn có chắc chắn muốn ngắt quyền truy cập của $sharedPhone?',
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(ctx, false),
+                                      child: const Text('Hủy'),
+                                    ),
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(ctx, true),
+                                      child: const Text(
+                                        'Xác nhận',
+                                        style: TextStyle(color: Colors.red),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+
+                              if (confirm == true) {
+                                final dbRef = FirebaseDatabase.instance.ref();
+                                final Map<String, dynamic> updates = {
+                                  'devices/${widget.device.deviceId}/shared_users/$sharedPhone': null,
+                                  'users/$sharedPhone/devices/${widget.device.deviceId}': null,
+                                };
+                                await dbRef.update(updates);
+
+                                if (widget.parentContext.mounted) {
+                                  ScaffoldMessenger.of(widget.parentContext).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Đã hủy chia sẻ với $sharedPhone'),
+                                      backgroundColor: Colors.blueGrey,
+                                    ),
+                                  );
+                                }
+                              }
+                            },
+                          ),
+                        );
+                      },
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
         ),
       ),
-    ),
-    actions: [
-      TextButton(
-        onPressed: () => Navigator.pop(context),
-        child: const Text('Đóng'),
-      ),
-    ],
-  );
-}
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Đóng'),
+        ),
+      ],
+    );
+  }
 }
