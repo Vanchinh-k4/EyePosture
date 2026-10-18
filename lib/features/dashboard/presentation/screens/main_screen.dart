@@ -61,15 +61,20 @@ class _MainScreenState extends State<MainScreen> {
             },
           )
         : DashboardScreen(
-            selectedDevice: _selectedDevice!,
-            userPhone: widget.userPhone,
-            onSwitchDevice: () {
-              setState(() {
-                _selectedDevice = null;
-              });
-            },
-          );
+  selectedDevice: _selectedDevice!,
+  userPhone: widget.userPhone,
+  onSwitchDevice: () {
+    setState(() {
+      _selectedDevice = null;
+    });
+  },
 
+  onNavigateToTab: (index) {
+    setState(() {
+      _currentIndex = index; 
+    });
+  },
+);
     // Tab 2: Lịch sử
     Widget historyTabContent = HistoryScreen(
       userPhone: widget.userPhone,
