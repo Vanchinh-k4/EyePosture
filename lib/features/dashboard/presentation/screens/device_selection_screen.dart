@@ -55,79 +55,78 @@ class DeviceSelectionScreen extends StatelessWidget {
             onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Hủy'),
           ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () async {
-              final String cleanPhone = userPhone.trim();
-              final dbRef = FirebaseDatabase.instance.ref();
+         // Trong hàm _confirmDeleteDevice của class DeviceSelectionScreen:
+ElevatedButton(
+  style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+  onPressed: () async {
+    final String cleanPhone = userPhone.trim();
+    final dbRef = FirebaseDatabase.instance.ref();
 
-              Navigator.pop(dialogContext);
+    Navigator.pop(dialogContext);
 
-              try {
-                if (isOwner) {
-                  try {
-                    await dbRef
-                        .child('devices/${device.deviceId}/info/reset_pending')
-                        .set(true)
-                        .timeout(const Duration(seconds: 2));
-                    await Future.delayed(const Duration(milliseconds: 1500));
-                  } catch (_) {
-                    debugPrint('ESP32 đang OFFLINE, bỏ qua chờ nhận tín hiệu reset.');
-                  }
+    try {
+      if (isOwner) {
+        // 1. Gửi lệnh yêu cầu ESP32 tự Reset
+        await dbRef
+            .child('devices/${device.deviceId}/info/reset_pending')
+            .set(true)
+            .timeout(const Duration(seconds: 3));
 
-                  final sharedSnap = await dbRef
-                      .child('devices/${device.deviceId}/shared_users')
-                      .get();
+        // 2. Xóa liên kết thiết bị khỏi tài khoản Owner và Shared Users
+        final sharedSnap = await dbRef
+            .child('devices/${device.deviceId}/shared_users')
+            .get();
 
-                  final Map<String, dynamic> updates = {};
-                  updates['devices/${device.deviceId}'] = null;
-                  updates['users/$cleanPhone/devices/${device.deviceId}'] = null;
+        final Map<String, dynamic> updates = {};
+        updates['users/$cleanPhone/devices/${device.deviceId}'] = null;
 
-                  if (sharedSnap.exists && sharedSnap.value is Map) {
-                    final sharedUsers = Map<String, dynamic>.from(sharedSnap.value as Map);
-                    for (String sharedPhone in sharedUsers.keys) {
-                      updates['users/$sharedPhone/devices/${device.deviceId}'] = null;
-                    }
-                  }
+        if (sharedSnap.exists && sharedSnap.value is Map) {
+          final sharedUsers = Map<String, dynamic>.from(sharedSnap.value as Map);
+          for (String sharedPhone in sharedUsers.keys) {
+            updates['users/$sharedPhone/devices/${device.deviceId}'] = null;
+          }
+        }
 
-                  await dbRef.update(updates).timeout(const Duration(seconds: 8));
+        // Cập nhật gỡ thiết bị khỏi tất cả tài khoản
+        await dbRef.update(updates).timeout(const Duration(seconds: 8));
 
-                } else {
-                  final Map<String, dynamic> updates = {
-                    'users/$cleanPhone/devices/${device.deviceId}': null,
-                    'devices/${device.deviceId}/shared_users/$cleanPhone': null,
-                  };
+      } else {
+        // Nếu là người xem (viewer), chỉ gỡ liên kết khỏi tài khoản của mình
+        final Map<String, dynamic> updates = {
+          'users/$cleanPhone/devices/${device.deviceId}': null,
+          'devices/${device.deviceId}/shared_users/$cleanPhone': null,
+        };
 
-                  await dbRef.update(updates).timeout(const Duration(seconds: 8));
-                }
+        await dbRef.update(updates).timeout(const Duration(seconds: 8));
+      }
 
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(isOwner
-                          ? 'Đã xóa hoàn toàn thiết bị "${device.deviceName}"!'
-                          : 'Đã hủy theo dõi thiết bị "${device.deviceName}".'),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
-                }
-              } catch (e) {
-                debugPrint('Lỗi khi thực hiện xóa thiết bị: $e');
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Lỗi khi xóa thiết bị: $e'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                }
-              }
-            },
-            child: Text(
-              isOwner ? 'Xóa hoàn toàn' : 'Hủy liên kết',
-              style: const TextStyle(color: Colors.white),
-            ),
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(isOwner
+                ? 'Đã gửi lệnh xóa thiết bị "${device.deviceName}". ESP32 đang reset...'
+                : 'Đã hủy theo dõi thiết bị "${device.deviceName}".'),
+            backgroundColor: Colors.green,
           ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Lỗi khi thực hiện xóa thiết bị: $e');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi khi xóa thiết bị: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  },
+  child: Text(
+    isOwner ? 'Xóa hoàn toàn' : 'Hủy liên kết',
+    style: const TextStyle(color: Colors.white),
+  ),
+)
         ],
       ),
     );
