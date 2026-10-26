@@ -9,7 +9,7 @@ class DashboardScreen extends StatefulWidget {
   final String userPhone;
   final DeviceModel selectedDevice;
   final VoidCallback? onSwitchDevice;
-  final Function(int)? onNavigateToTab; // 🚀 Bổ sung Callback chuyển Tab
+  final Function(int)? onNavigateToTab;
 
   const DashboardScreen({
     super.key,
@@ -33,7 +33,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _deviceRef = FirebaseDatabase.instance.ref('devices/$deviceId');
   }
 
-  // Cập nhật cấu hình cài đặt chung lên Firebase (/devices/{deviceId}/settings)
   Future<void> _updateSetting(String key, dynamic value) async {
     try {
       await _deviceRef.child('settings').update({
@@ -52,12 +51,125 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  // Hàm hỗ trợ chuyển nhanh tới Tab mong muốn (Ví dụ Tab Lịch Sử có index = 1)
   void _goToHistoryTab() {
     if (widget.onNavigateToTab != null) {
-      widget.onNavigateToTab!(1); // Index 1 tương ứng với Tab Lịch Sử & Thống Kê
+      widget.onNavigateToTab!(1);
     } else {
       _showSnackBar('Chuyển sang tab Lịch Sử để xem chi tiết');
+    }
+  }
+
+  int _getIntValue(dynamic value) {
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value) ?? 0;
+    return 0;
+  }
+
+  double _getDoubleValue(dynamic value) {
+    if (value is num) return value.toDouble();
+    if (value is String) return double.tryParse(value) ?? 0.0;
+    return 0.0;
+  }
+
+  // =========================================================================
+  // 1. CẤU HÌNH AVATAR VÀ TƯ THẾ REALTIME
+  // =========================================================================
+  Map<String, dynamic> _getAvatarPostureConfig(
+      String posture, String detail, bool alarm) {
+    final String pUpper = posture.toUpperCase();
+    final String dUpper = detail.toUpperCase();
+
+    if (pUpper.contains('ABSENT') || dUpper.contains('VANG MAT')) {
+      return {
+        'color': Colors.grey.shade600,
+        'bgColor': Colors.grey.shade100,
+        'borderColor': Colors.grey.shade300,
+        'icon': Icons.person_off_rounded,
+        'title': 'Vắng mặt',
+        'subtitle': 'Không phát hiện người ngồi trước thiết bị',
+        'illustration': '🪑',
+      };
+    } else if (alarm ||
+        pUpper.contains('CRITICAL') ||
+        dUpper.contains('NGUY HIEM')) {
+      return {
+        'color': Colors.red.shade700,
+        'bgColor': Colors.red.shade50,
+        'borderColor': Colors.red.shade200,
+        'icon': Icons.warning_amber_rounded,
+        'title': 'Cảnh báo nguy hiểm!',
+        'subtitle': 'Ngồi quá sát & thiếu ánh sáng nghiêm trọng',
+        'illustration': '⚠️',
+      };
+    } else if (pUpper.contains('TOO CLOSE') ||
+        dUpper.contains('NGOI QUA SAT')) {
+      return {
+        'color': Colors.orange.shade800,
+        'bgColor': Colors.orange.shade50,
+        'borderColor': Colors.orange.shade200,
+        'icon': Icons.airline_seat_recline_extra_rounded,
+        'title': 'Cúi quá sát màn hình!',
+        'subtitle': 'Hãy ngồi thẳng lưng và giữ khoảng cách > 35cm',
+        'illustration': '🙇',
+      };
+    } else if (pUpper.contains('LOW LIGHT') ||
+        dUpper.contains('THIEU ANH SANG')) {
+      return {
+        'color': Colors.amber.shade900,
+        'bgColor': Colors.amber.shade50,
+        'borderColor': Colors.amber.shade200,
+        'icon': Icons.wb_incandescent_outlined,
+        'title': 'Môi trường thiếu sáng',
+        'subtitle': 'Hãy bật thêm đèn học để bảo vệ mắt',
+        'illustration': '💡',
+      };
+    } else {
+      return {
+        'color': Colors.green.shade700,
+        'bgColor': Colors.green.shade50,
+        'borderColor': Colors.green.shade200,
+        'icon': Icons.sentiment_very_satisfied_rounded,
+        'title': 'Tư thế chuẩn',
+        'subtitle': 'Khoảng cách và ánh sáng đạt mức tối ưu',
+        'illustration': '🧘',
+      };
+    }
+  }
+
+  // =========================================================================
+  // 2. CẤU HÌNH KHUYẾN NGHỊ ÁNH SÁNG (LDR - LUX)
+  // =========================================================================
+  Map<String, dynamic> _getLightConfig(double lux) {
+    if (lux < 150) {
+      return {
+        'status': 'Quá tối cho đọc sách / làm việc',
+        'advice':
+            'Độ sáng ${lux.toInt()} LUX: Hãy bật thêm đèn bàn hoặc mở cửa sổ.',
+        'color': Colors.red.shade700,
+        'bgColor': Colors.red.shade50,
+        'progress': (lux / 500).clamp(0.0, 1.0),
+        'icon': Icons.nightlight_round,
+      };
+    } else if (lux <= 500) {
+      return {
+        'status': 'Ánh sáng đạt chuẩn học tập',
+        'advice':
+            'Độ sáng ${lux.toInt()} LUX: Môi trường vừa đủ tối ưu cho mắt.',
+        'color': Colors.green.shade700,
+        'bgColor': Colors.green.shade50,
+        'progress': (lux / 500).clamp(0.0, 1.0),
+        'icon': Icons.wb_sunny_rounded,
+      };
+    } else {
+      return {
+        'status': 'Ánh sáng rất mạnh / Chói',
+        'advice':
+            'Độ sáng ${lux.toInt()} LUX: Tránh ánh nắng chiếu trực tiếp vào mắt.',
+        'color': Colors.amber.shade900,
+        'bgColor': Colors.amber.shade50,
+        'progress': 1.0,
+        'icon': Icons.wb_sunny_outlined,
+      };
     }
   }
 
@@ -74,17 +186,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
         String deviceName = widget.selectedDevice.deviceName;
         double currentDistance =
-            (widget.selectedDevice.currentData?.distanceCm ?? 0).toDouble();
-        int currentLight =
-            (widget.selectedDevice.currentData?.lightLux ?? 0).toInt();
+            _getDoubleValue(widget.selectedDevice.currentData?.distanceCm);
+        double currentLight =
+            _getDoubleValue(widget.selectedDevice.currentData?.lightLux);
 
-        String posture = widget.selectedDevice.currentData?.posture ?? 'empty';
+        String posture = widget.selectedDevice.currentData?.posture ?? 'NORMAL';
         String postureDetail = 'Đang tải...';
         bool isAlarm = false;
         int lastSeenMs = 0;
+        int sessionTimeSec = 0;
 
-        // Trạng thái cài đặt chức năng
-        bool isBuzzerEnabled = widget.selectedDevice.settings?.warningBuzzer ?? true;
+        bool isBuzzerEnabled =
+            widget.selectedDevice.settings?.warningBuzzer ?? true;
         bool isLedEnabled = true;
         bool isSmartAlertEnabled = true;
 
@@ -93,7 +206,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
               snapshot.data!.snapshot.value as Map<dynamic, dynamic>;
           final data = Map<String, dynamic>.from(rawData);
 
-          // Đọc thông tin thiết bị
           if (data['info'] != null && data['info'] is Map) {
             final infoMap = Map<String, dynamic>.from(data['info']);
             deviceName = infoMap['device_name'] ?? deviceName;
@@ -101,26 +213,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
             deviceName = data['device_name'] ?? deviceName;
           }
 
-          // Đọc thời gian tương tác gần nhất
-          if (data['last_seen'] != null) {
-            if (data['last_seen'] is int) {
-              lastSeenMs = data['last_seen'];
-            }
+          if (data['last_seen'] != null && data['last_seen'] is int) {
+            lastSeenMs = data['last_seen'];
           }
 
-          // Đọc dữ liệu cảm biến Realtime
           if (data['current_data'] != null) {
             final currentData =
                 Map<String, dynamic>.from(data['current_data']);
             currentDistance =
-                (currentData['distance_cm'] ?? currentDistance).toDouble();
-            currentLight = (currentData['light_lux'] ?? currentLight).toInt();
+                _getDoubleValue(currentData['distance_cm'] ?? currentDistance);
+            currentLight =
+                _getDoubleValue(currentData['light_lux'] ?? currentLight);
             posture = currentData['posture'] ?? posture;
             postureDetail = currentData['posture_detail'] ?? 'Bình thường';
-            isAlarm = currentData['alarm'] ?? false;
+            isAlarm = currentData['alarm'] == true;
+            sessionTimeSec = _getIntValue(currentData['session_time_sec']);
           }
 
-          // Đọc cài đặt các chức năng
           if (data['settings'] != null) {
             final settings = Map<String, dynamic>.from(data['settings']);
             isBuzzerEnabled = settings['warning_buzzer'] ?? isBuzzerEnabled;
@@ -132,6 +241,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
         final int nowMs = DateTime.now().millisecondsSinceEpoch;
         final bool isOnline =
             lastSeenMs > 0 && (nowMs - lastSeenMs).abs() < 30000;
+
+        final avatarConfig =
+            _getAvatarPostureConfig(posture, postureDetail, isAlarm);
+        final lightConfig = _getLightConfig(currentLight);
 
         return Scaffold(
           backgroundColor: AppColors.background,
@@ -183,22 +296,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Trạng thái kết nối & Thiết bị
+                      // Banner Trạng thái kết nối
                       _buildDeviceInfoBanner(
                         deviceId: widget.selectedDevice.deviceId,
                         isOnline: isOnline,
                       ),
                       const SizedBox(height: 16),
 
-                      // Card Cảnh báo & Trạng thái tư thế
-                      _buildPostureCard(
-                        posture: posture,
-                        postureDetail: postureDetail,
-                        isAlarm: isAlarm,
-                      ),
+                      // 1. MÔ PHỎNG TƯ THẾ DẠNG VECTOR AVATAR
+                      _buildPostureAvatarCard(avatarConfig, currentDistance),
                       const SizedBox(height: 16),
 
-                      // Thông số Realtime
+                      // 2. ĐỒNG HỒ PHIÊN RING PROGRESS (POMODORO 45 PHÚT)
+                      _buildSessionProgressCard(sessionTimeSec),
+                      const SizedBox(height: 16),
+
+                      // 3. CARD CHỈ SỐ MÔI TRƯỜNG & ÁNH SÁNG LDR
+                      _buildEnvironmentLuxCard(currentLight, lightConfig),
+                      const SizedBox(height: 20),
+
+                      // Thông số Realtime cơ bản
                       const Text(
                         'Thông Số Thời Gian Thực',
                         style: TextStyle(
@@ -221,7 +338,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           Expanded(
                             child: MetricCard(
                               title: 'Ánh Sáng',
-                              value: '$currentLight Lux',
+                              value: '${currentLight.toInt()} Lux',
                               icon: Icons.wb_sunny_outlined,
                               color: Colors.amber.shade700,
                             ),
@@ -291,7 +408,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                       const SizedBox(height: 20),
 
-                      // Trung Tâm Quản Lý Hệ Thống & Tính Năng Mở Rộng
+                      // Feature Tiles & Tính Năng Mở Rộng
                       const Text(
                         'Tính Năng Mở Rộng',
                         style: TextStyle(
@@ -305,12 +422,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         color: Colors.indigo,
                         title: 'Lịch Sử & Thống Kê Chi Tiết',
                         subtitle: 'Xem nhật ký vi phạm tư thế & phiên làm việc',
-                        onTap: _goToHistoryTab, // 🚀 CHUYỂN TRỰC TIẾP SANG TAB LỊCH SỬ
+                        onTap: _goToHistoryTab,
                       ),
                       _buildFeatureTile(
                         icon: Icons.timer_outlined,
                         color: Colors.teal,
-                        title: 'Chế Độ Học Tập (Pomodoro 25 phút)',
+                        title: 'Chế Độ Học Tập (Pomodoro 45 phút)',
                         subtitle: 'Hẹn giờ tập trung & thông báo nghỉ ngơi',
                         onTap: () {
                           _showSnackBar('Chức năng Pomodoro đang được kích hoạt');
@@ -322,7 +439,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         title: 'Cấu Hình Mạng Wi-Fi AP',
                         subtitle: 'Cập nhật SSID & Password cho ESP32',
                         onTap: () {
-                          _showSnackBar('Mở mục Chia Sẻ / AP Config tại danh sách thiết bị');
+                          _showSnackBar(
+                              'Mở mục Chia Sẻ / AP Config tại danh sách thiết bị');
                         },
                       ),
                     ],
@@ -332,6 +450,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
       },
     );
   }
+
+  // =========================================================================
+  // BUILDERS WIDGET PHỤ TRỢ VISUALLY RICH
+  // =========================================================================
 
   Widget _buildDeviceInfoBanner({
     required String deviceId,
@@ -391,83 +513,300 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildPostureCard({
-    required String posture,
-    required String postureDetail,
-    required bool isAlarm,
-  }) {
-    Color cardBgColor;
-    Color iconColor;
-    Color textColor;
-    IconData iconData;
+  Widget _buildPostureAvatarCard(
+      Map<String, dynamic> config, double distanceCm) {
+    final Color mainColor = config['color'] as Color;
+    final Color bgColor = config['bgColor'] as Color;
+    final Color borderColor = config['borderColor'] as Color;
 
-    if (isAlarm) {
-      cardBgColor = Colors.red.shade50;
-      iconColor = Colors.red.shade700;
-      textColor = Colors.red.shade900;
-      iconData = Icons.warning_amber_rounded;
-    } else if (posture == 'good') {
-      cardBgColor = AppColors.cardGood;
-      iconColor = Colors.green.shade700;
-      textColor = Colors.green.shade900;
-      iconData = Icons.check_circle_outline_rounded;
-    } else if (posture == 'empty') {
-      cardBgColor = Colors.grey.shade100;
-      iconColor = Colors.grey.shade600;
-      textColor = Colors.grey.shade800;
-      iconData = Icons.event_seat_outlined;
-    } else {
-      cardBgColor = Colors.amber.shade50;
-      iconColor = Colors.amber.shade800;
-      textColor = Colors.amber.shade900;
-      iconData = Icons.info_outline_rounded;
-    }
-
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: borderColor, width: 2),
+        boxShadow: [
+          BoxShadow(
+            color: mainColor.withOpacity(0.08),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
-      color: cardBgColor,
-      child: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Row(
-          children: [
-            Icon(
-              iconData,
-              size: 44,
-              color: iconColor,
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Stack(
+                alignment: Alignment.bottomRight,
                 children: [
-                  Text(
-                    postureDetail,
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: textColor,
+                  Container(
+                    width: 76,
+                    height: 76,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.white,
+                      border: Border.all(color: mainColor, width: 3),
+                    ),
+                    child: Center(
+                      child: Text(
+                        config['illustration'].toString(),
+                        style: const TextStyle(fontSize: 38),
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  CircleAvatar(
+                    radius: 13,
+                    backgroundColor: mainColor,
+                    child: Icon(
+                      config['icon'] as IconData,
+                      color: Colors.white,
+                      size: 15,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      config['title'].toString(),
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.bold,
+                        color: mainColor,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      config['subtitle'].toString(),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade800,
+                        height: 1.3,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const Divider(height: 24),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.straighten, size: 18, color: Colors.grey),
+                  SizedBox(width: 6),
                   Text(
-                    isAlarm
-                        ? 'Vui lòng điều chỉnh lại tư thế ngồi!'
-                        : (posture == 'good'
-                            ? 'Khoảng cách & tư thế ngồi đang ở mức an toàn.'
-                            : 'Đang theo dõi tư thế ngồi...'),
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: textColor.withOpacity(0.8),
+                    'Khoảng cách mắt:',
+                    style: TextStyle(fontSize: 13, color: Colors.black87),
+                  ),
+                ],
+              ),
+              Text(
+                distanceCm > 0
+                    ? '${distanceCm.toStringAsFixed(0)} cm'
+                    : '-- cm',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: distanceCm > 0 && distanceCm < 35
+                      ? Colors.red
+                      : Colors.black87,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSessionProgressCard(int sessionTimeSec) {
+    const int maxSessionSec = 45 * 60;
+    final double progress = (sessionTimeSec / maxSessionSec).clamp(0.0, 1.0);
+
+    final int minutes = sessionTimeSec ~/ 60;
+    final int seconds = sessionTimeSec % 60;
+    final bool isOverTime = sessionTimeSec >= maxSessionSec;
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Phiên Ngồi Học Tập',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              Chip(
+                label: Text('Mục tiêu 45 phút', style: TextStyle(fontSize: 11)),
+                backgroundColor: AppColors.primary,
+                labelStyle: TextStyle(color: Colors.white),
+                padding: EdgeInsets.zero,
+                visualDensity: VisualDensity.compact,
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Center(
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                SizedBox(
+                  width: 150,
+                  height: 150,
+                  child: CircularProgressIndicator(
+                    value: progress,
+                    strokeWidth: 12,
+                    backgroundColor: Colors.grey.shade200,
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      isOverTime ? Colors.red : AppColors.primary,
+                    ),
+                  ),
+                ),
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}',
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: isOverTime ? Colors.red : Colors.black87,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      isOverTime ? 'Hãy nghỉ giải lao!' : 'Thời gian phiên',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isOverTime ? Colors.red : Colors.grey,
+                        fontWeight:
+                            isOverTime ? FontWeight.bold : FontWeight.normal,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          if (isOverTime) ...[
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.info_outline, size: 18, color: Colors.red),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Bạn đã ngồi quá 45 phút! Hãy đứng dậy thư giãn 5 phút.',
+                      style: TextStyle(fontSize: 12, color: Colors.red),
                     ),
                   ),
                 ],
               ),
             ),
-          ],
-        ),
+          ]
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEnvironmentLuxCard(
+      double lux, Map<String, dynamic> lightConfig) {
+    final Color mainColor = lightConfig['color'] as Color;
+    final Color bgColor = lightConfig['bgColor'] as Color;
+    final double progress = lightConfig['progress'] as double;
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Icon(lightConfig['icon'] as IconData, color: mainColor),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'Ánh Sáng Phòng (LDR)',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+              Text(
+                '${lux.toInt()} LUX',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: mainColor,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: progress,
+              minHeight: 10,
+              backgroundColor: Colors.grey.shade200,
+              valueColor: AlwaysStoppedAnimation<Color>(mainColor),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: bgColor,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  lightConfig['status'].toString(),
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: mainColor,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  lightConfig['advice'].toString(),
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade800),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

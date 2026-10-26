@@ -288,7 +288,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                 title: _buildSessionTitleText(start, end, isRealtimeActive),
                                 subtitle: Text(
                                   isRealtimeActive
-                                      ? 'Đang hoạt động (Realtime)'
+                                      ? 'Đang hoạt động'
                                       : 'Đã hoàn thành',
                                   style: TextStyle(
                                     fontSize: 12,
